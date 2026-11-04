@@ -1,0 +1,92 @@
+import random
+import math
+
+N = 7
+
+low = [2.6, 0.7, 17, 7.3, 7.3, 2.9, 5.0]
+high = [3.6, 0.8, 28, 8.3, 8.3, 3.9, 5.5]
+
+def objective(x):
+    x1, x2, x3, x4, x5, x6, x7 = x
+
+    return (
+        0.7854*x1*x2**2*(3.3333*x3**2 + 14.9334*x3 - 43.0934)
+        - 1.508*x1*(x6**2 + x7**2)
+        + 7.4777*(x6**3 + x7**3)
+        + 0.7854*(x4*x6**2 + x5*x7**2)
+    )
+
+def constraints(x):
+    x1, x2, x3, x4, x5, x6, x7 = x
+
+    return [
+        27/(x1*x2**2*x3) - 1,
+        397.5/(x1*x2**2*x3**2) - 1,
+        1.93*x4**3/(x2*x3*x6**4) - 1,
+        1.93*x5**3/(x2*x3*x7**4) - 1,
+        math.sqrt((745*x4/(x2*x3))**2 + 1.69e7)/(110*x6**3) - 1,
+        math.sqrt((745*x5/(x2*x3))**2 + 1.575e8)/(85*x7**3) - 1,
+        x2*x3/40 - 1,
+        5*x2/x1 - 1,
+        x1/(12*x2) - 1,
+        (1.5*x6 + 1.9)/x4 - 1,
+        (1.1*x7 + 1.9)/x5 - 1
+    ]
+
+def fitness(x):
+    penalty = sum(max(0, g)**2 for g in constraints(x))
+    return objective(x) + 10000000 * penalty
+
+def create_population(size):
+    return [
+        [random.uniform(low[i], high[i]) for i in range(N)]
+        for _ in range(size)
+    ]
+
+def selection(population):
+    a, b = random.sample(population, 2)
+    return a if fitness(a) < fitness(b) else b
+
+def crossover(p1, p2):
+    point = random.randint(1, N-1)
+    return p1[:point] + p2[point:]
+
+def mutation(child):
+    i = random.randint(0, N-1)
+    child[i] = random.uniform(low[i], high[i])
+    return child
+
+def genetic_algorithm():
+
+    population = create_population(50)
+
+    for generation in range(100):
+
+        new_population = []
+
+        for _ in range(50):
+
+            p1 = selection(population)
+            p2 = selection(population)
+
+            child = crossover(p1, p2)
+
+            if random.random() < 0.1:
+                child = mutation(child)
+
+            new_population.append(child)
+
+        population = new_population
+
+        best = min(population, key=fitness)
+
+    print("Best Gear Reducer Design:")
+
+    for i, value in enumerate(best):
+        print("X", i+1, "=", round(value, 4))
+
+    print("Minimum Objective Value =", round(objective(best), 4))
+
+    print("Constraint Violations =", sum(max(0, g) for g in constraints(best)))
+
+genetic_algorithm()

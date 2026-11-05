@@ -1,0 +1,113 @@
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Generate a sample grayscale image automatically
+np.random.seed(42)
+
+img = np.zeros((256, 256), dtype=np.uint8)
+
+img[:128, :128] = 50
+img[:128, 128:] = 100
+img[128:, :128] = 160
+img[128:, 128:] = 220
+
+# Add shapes
+for i in range(256):
+    for j in range(256):
+        if (i-128)**2 + (j-128)**2 < 40**2:
+            img[i, j] = 255
+
+noise = np.random.normal(0, 8, (256, 256))
+img = np.clip(img + noise, 0, 255).astype(np.uint8)
+
+pixels = img.flatten()
+
+# GWO parameters
+n = 10
+iterations = 50
+dim = 3
+
+# Fitness function
+def fitness(thresholds):
+    thresholds = np.sort(thresholds.astype(int))
+    segmented = np.digitize(pixels, thresholds)
+
+    total_mean = np.mean(pixels)
+    variance = 0
+
+    for i in range(dim + 1):
+        region = pixels[segmented == i]
+
+        if len(region) > 0:
+            weight = len(region) / len(pixels)
+            mean = np.mean(region)
+            variance += weight * (mean - total_mean)**2
+
+    return -variance
+
+# Initialize wolves
+wolves = np.random.randint(0, 256, (n, dim))
+
+alpha = np.zeros(dim)
+beta = np.zeros(dim)
+delta = np.zeros(dim)
+
+# Grey Wolf Optimization
+for t in range(iterations):
+
+    scores = np.array([fitness(w) for w in wolves])
+    order = np.argsort(scores)
+
+    alpha = wolves[order[0]].copy()
+    beta = wolves[order[1]].copy()
+    delta = wolves[order[2]].copy()
+
+    a = 2 - 2 * t / iterations
+
+    for i in range(n):
+        for j in range(dim):
+
+            r1, r2 = np.random.rand(), np.random.rand()
+            A1 = 2*a*r1 - a
+            C1 = 2*r2
+            D1 = abs(C1*alpha[j] - wolves[i][j])
+            X1 = alpha[j] - A1*D1
+
+            r1, r2 = np.random.rand(), np.random.rand()
+            A2 = 2*a*r1 - a
+            C2 = 2*r2
+            D2 = abs(C2*beta[j] - wolves[i][j])
+            X2 = beta[j] - A2*D2
+
+            r1, r2 = np.random.rand(), np.random.rand()
+            A3 = 2*a*r1 - a
+            C3 = 2*r2
+            D3 = abs(C3*delta[j] - wolves[i][j])
+            X3 = delta[j] - A3*D3
+
+            wolves[i][j] = np.clip(
+                (X1 + X2 + X3)/3, 0, 255
+            )
+
+# Final segmentation
+thresholds = np.sort(alpha.astype(int))
+segmented = np.digitize(img, thresholds)
+
+# Display results
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Original Image")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(segmented, cmap='gray')
+plt.title("GWO Image Segmentation")
+plt.axis("off")
+
+plt.show()
+
+print("Optimal Thresholds:", thresholds)
+print("Number of Segments:", dim + 1)
